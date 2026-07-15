@@ -168,3 +168,92 @@ function Repair-VolumeOwnership {
     # Mesma cautela do Cerbero: volumes novos as vezes nascem/voltam a ser
     # donos de root entre execucoes. Chamado antes de toda subida do
     # container, custo baixo (container descartavel rapido).
+    wslc run --rm --user root `
+        -v ${DataVolume}:/home/node/.n8n `
+        --entrypoint chown $ImageTag -R node:node /home/node/.n8n 2>$null | Out-Null
+}
+Repair-VolumeOwnership
+
+# --- 4b. Rede nomeada compartilhada (opcional, para outros containers WSLC alcancarem o Hermes) ---
+# Cada container WSLC vive isolado por padrao - de fora do host, so a porta
+# publicada (-p) e alcancavel; outro container WSLC (ex.: cerbero-gateway) nao
+# enxerga o Hermes automaticamente, nem por IP nem por nome, a menos que os
+# dois estejam na MESMA rede nomeada (mesmo mecanismo do Docker: rede default
+# nao da DNS entre containers, rede nomeada/definida pelo usuario da). Ver
+# LICOES-APRENDIDAS.md para o raciocinio completo.
+$NetworkArgs = @()
+if ($SharedNetwork -and $SharedNetwork.Trim() -ne "") {
+    Write-Step "Rede compartilhada ($SharedNetwork)"
+    try { wslc network create $SharedNetwork 2>$null | Out-Null } catch {}
+    # --network-alias registra $Hostname como o nome resolvivel na rede
+    # compartilhada, DESACOPLADO do --name tecnico do container
+    # ($ContainerName). Assim, se -Hostname virar um dominio de verdade no
+    # futuro (migracao pra nuvem), o "endereco" que outros containers usam
+    # pra falar com o Hermes muda com ele, sem precisar tocar em
+    # -ContainerName (que e so um detalhe interno do wslc). Best-effort: a
+    # doc publica do "wslc network" nao confirma exaustivamente este flag -
+    # se falhar nesta preview, o container ainda fica alcancavel pelo
+    # --name de qualquer forma.
+    $NetworkArgs = @("--network", $SharedNetwork, "--network-alias", $Hostname)
+}
+
+# --- 5. (Re)inicia o container ------------------------------------------------
+Write-Step "Subindo o n8n ($ContainerName)"
+
+Write-Host "Parando/removendo container anterior (se existir)..."
+try { wslc container stop $ContainerName 2>$null | Out-Null } catch {}
+try { wslc container rm $ContainerName 2>$null | Out-Null } catch {}
+
+$runArgs = @(
+    "run", "-d",
+    "--name", $ContainerName,
+    "-p", "${Port}:5678",
+    "-v", "${DataVolume}:/home/node/.n8n"
+) + $NetworkArgs + $EnvArgs + @($ImageTag)
+
+wslc @runArgs
+if ($LASTEXITCODE -ne 0) { Write-Host "Falha ao iniciar o container." -ForegroundColor Red; exit 1 }
+
+# --- 6. Healthcheck -----------------------------------------------------------
+Write-Step "Verificando saude do n8n"
+# n8n expoe GET /healthz nativamente (retorna 200 {"status":"ok"}). Mesma
+# logica de retry do Cerbero: ate 5 tentativas com 4s entre elas, porque uma
+# unica checagem logo apos subir o processo gera falso-negativo (n8n ainda
+# esta migrando o banco/inicializando).
+$healthy = $false
+for ($i = 1; $i -le 5; $i++) {
+    Start-Sleep -Seconds 4
+    try {
+        $health = Invoke-WebRequest -Uri "http://127.0.0.1:$Port/healthz" -UseBasicParsing -TimeoutSec 10
+        Write-Host "healthz: $($health.StatusCode) $($health.Content)" -ForegroundColor Green
+        $healthy = $true
+        break
+    } catch {
+        Write-Host "Ainda sem resposta em /healthz (tentativa $i/5)..." -ForegroundColor DarkYellow
+    }
+}
+if (-not $healthy) {
+    Write-Host "Nao consegui bater em /healthz. Rode: wslc container logs $ContainerName" -ForegroundColor Yellow
+}
+
+Write-Step "Pronto"
+Write-Host "Editor n8n: http://${Hostname}:$Port/  (requer scripts\add-hosts-entries.ps1 rodado uma vez como Administrador)"
+Write-Host "Fallback sem hosts configurado: http://127.0.0.1:$Port/"
+Write-Host ""
+Write-Host "No primeiro acesso o proprio n8n pede para criar o usuario owner (nome, e-mail, senha) - nao ha .env de usuario/senha a preencher para isso."
+if ($SharedNetwork -and $SharedNetwork.Trim() -ne "") {
+    Write-Host ""
+    Write-Host "Rede compartilhada '$SharedNetwork' ativa - de dentro de outro container WSLC" -ForegroundColor Cyan
+    Write-Host "conectado na mesma rede, o Hermes deve ser alcancavel em:"
+    Write-Host "  http://${Hostname}:5678   (Hostname configurado, porta INTERNA - nao a $Port publicada no host)"
+    Write-Host "Se o nome nao resolver, confira o IP com: wslc container inspect $ContainerName"
+}
+Write-Host ""
+Write-Host "Para acessar http://${Hostname}:$Port direto do navegador do Windows (nao so entre" -ForegroundColor Cyan
+Write-Host "containers), rode uma vez como Administrador: .\scripts\add-hosts-entries.ps1"
+Write-Host ""
+Write-Host "Comandos uteis de operacao:"
+Write-Host "  wslc container ps"
+Write-Host "  wslc container logs -f $ContainerName"
+Write-Host "  wslc container stop $ContainerName"
+Write-Host "  wslc container start $ContainerName"
