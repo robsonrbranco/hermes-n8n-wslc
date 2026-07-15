@@ -9,6 +9,13 @@ container) — este README assume as mesmas convenções e reaproveita as liçõ
 descobertas lá. Detalhes técnicos e causas-raiz em
 **[LICOES-APRENDIDAS.md](./LICOES-APRENDIDAS.md)**.
 
+Este pacote usa a imagem **oficial** do n8n, sem modificações de sistema
+(ela não tem gerenciador de pacote nenhum — ver LICOES-APRENDIDAS.md seções
+10-11). Qualquer necessidade de Python/Playwright/certificado digital para
+scraping/automação vive num terceiro projeto irmão, **[Argos](../argos)**,
+chamado pelo n8n via HTTP Request node quando os dois estão na mesma
+`-SharedNetwork` (ver LICOES-APRENDIDAS.md seção 15).
+
 ## Convenções deste projeto
 
 Mesmas duas regras do Cerbero, aplicadas aqui:

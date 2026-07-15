@@ -490,6 +490,43 @@ host, confirmado ao publicar tanto este repositório quanto o do Cerbero via
 precise interagir com o GitHub (releases, PRs, issues) sem precisar
 verificar disponibilidade do zero.
 
+## 15. Necessidade de Python/Playwright/certificado digital: por que virou um projeto separado (Argos), não um Dockerfile maior aqui (15/07/2026)
+
+Surgiu a necessidade de rodar scraping autenticado (certificado digital A1,
+consultas no CAV da Receita Federal) a partir de workflows do n8n. Como as
+lições 10-11 já tinham estabelecido que a imagem oficial do n8n não tem
+gerenciador de pacote nenhum, a primeira tentativa foi reconstruir o Hermes
+inteiro `FROM debian:bookworm-slim`, instalando Node+n8n via `npm install -g`
+e Python+Playwright+Chromium por cima — funcionou (build passou, container
+saudável), mas trocava a manutenção automática da imagem oficial (updates de
+segurança do n8n, versões testadas pelo próprio time) por manutenção manual
+da dupla Node/n8n daqui pra frente.
+
+**Decisão final**: reverter o Hermes para a imagem oficial (`ghcr.io/n8n-io/n8n`,
+lições 9-12, sem nenhuma dependência extra) e criar um projeto irmão,
+**Argos** (`../argos`), só para o scraper — mesmo padrão de autossuficiência
+de Cerbero/Hermes (`Dockerfile` próprio sobre Debian completo, `setup-argos-wslc.ps1`,
+`-Hostname argos-scraper`). O acoplamento entre os dois é só uma chamada HTTP
+(`scraper-server.py` do Argos expõe `/scrape`), na mesma `-SharedNetwork` já
+usada com o Cerbero (lição 5b) — nenhuma tecnologia nova, só reaproveitar o
+padrão de rede nomeada.
+
+**Achado de segurança durante a migração**: os dois scripts Python do
+scraper tinham a senha do certificado A1 hardcoded como valor default
+(`DEFAULT_PASS = "..."`), e viviam em `scripts/`, pasta que **não** estava
+protegida pelo `.gitignore` (só `certs/` tinha proteção, e olhe lá, foi
+adicionada depois de já existir sem ela). Como nenhum desses arquivos tinha
+sido commitado ainda, deu pra corrigir sem deixar rastro no histórico: senha
+passou a vir exclusivamente de `os.environ.get("CERT_PASSWORD", "")`, e o
+`.gitignore` do Argos já nasce com `certs/` protegido desde o primeiro
+commit. Ver `../argos/LICOES-APRENDIDAS.md` para o detalhamento completo.
+
+**Lição de processo**: `.gitignore` cobre pastas de dados óbvias (`certs/`,
+`.env`), mas não protege contra um valor sensível parar em lugar
+inesperado, como o default de um argumento de função dentro de um script
+`.py` "normal". Vale revisar o conteúdo de qualquer arquivo novo que lide
+com credenciais antes do primeiro `git add`, não confiar só no `.gitignore`.
+
 ## Referências usadas
 
 - `../cerbero/LICOES-APRENDIDAS.md` — registro original de todas as
