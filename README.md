@@ -1,5 +1,12 @@
 # Hermes — n8n no WSLC (WSL Containers)
 
+> Na mitologia grega, **Hermes** é o mensageiro dos deuses — o único que
+> transita livremente entre o Olimpo, o mundo dos mortais e o submundo,
+> levando mensagens, mediando negociações e conectando lugares que não se
+> falariam sozinhos. É a mesma função deste container: o n8n existe para
+> orquestrar workflows, carregar dados entre serviços e disparar mensagens
+> (webhooks, e-mails, chamadas de API) que, sem ele, não se comunicariam.
+
 Este pacote sobe o [n8n](https://n8n.io) (automação de workflows) num único
 container Linux usando o **WSL Containers** da Microsoft (`wslc.exe`), em
 preview público desde 30/06/2026 (GA prevista para o outono de 2026).
