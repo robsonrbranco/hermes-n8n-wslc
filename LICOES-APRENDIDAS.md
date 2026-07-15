@@ -481,6 +481,15 @@ quem só usa nodes padrão em JavaScript (o caso de uso deste pacote); só
 importa se algum workflow futuro precisar rodar código Python dentro do
 n8n, o que exigiria um runner externo (fora do escopo deste setup inicial).
 
+## 14. Ferramentas confirmadas disponíveis neste host (15/07/2026)
+
+Registro simples, sem incidente por trás — só para não precisar redescobrir
+em sessões futuras: `gh` (GitHub CLI) está instalado e autenticado neste
+host, confirmado ao publicar tanto este repositório quanto o do Cerbero via
+`gh repo create ... --push`. Relevante para qualquer automação futura que
+precise interagir com o GitHub (releases, PRs, issues) sem precisar
+verificar disponibilidade do zero.
+
 ## Referências usadas
 
 - `../cerbero/LICOES-APRENDIDAS.md` — registro original de todas as

@@ -57,11 +57,15 @@ wslc version
 Se `wslc version` não responder, o preview não está ativo na sua máquina —
 pare aqui e atualize o WSL primeiro.
 
+`gh` (GitHub CLI) confirmado instalado neste host — usado para publicar este
+repositório (`gh repo create ...`, ver seção de contribuição/publicação, se
+houver) e útil para qualquer fluxo futuro de PR/release deste projeto.
+
 ## 2. Arquivos deste pacote
 
 | Arquivo | Papel |
 | --- | --- |
-| `Dockerfile` | Camada fina sobre a imagem oficial `docker.n8n.io/n8nio/n8n:latest`, + git/curl/jq para diagnóstico |
+| `Dockerfile` | Camada fina sobre a imagem oficial `ghcr.io/n8n-io/n8n:latest` (ver LICOES-APRENDIDAS.md, seções 9-11, para o porquê deste registry específico e por que não instala mais ferramentas de diagnóstico) |
 | `.env.example` | Template da chave de criptografia e config de rede/timezone |
 | `setup-hermes-wslc.ps1` | Build + volume nomeado + sobe o container — idempotente, roda de novo sem medo |
 | `hermes-cli.ps1` | Roda qualquer comando `n8n ...` avulso (export/import de workflow, reset de usuário) reusando o mesmo volume |
