@@ -1,0 +1,43 @@
+name: deploy
+
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - "**.md"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        run: |
+          docker build -t ghcr.io/robsonrbranco/hermes:${{ github.sha }} -t ghcr.io/robsonrbranco/hermes:latest .
+          docker push ghcr.io/robsonrbranco/hermes:${{ github.sha }}
+          docker push ghcr.io/robsonrbranco/hermes:latest
+
+      - uses: azure/setup-kubectl@v4
+
+      - name: Deploy to k3s
+        run: |
+          echo "${{ secrets.KUBECONFIG_OLYMPUS }}" > kubeconfig.yaml
+          export KUBECONFIG=kubeconfig.yaml
+          kubectl apply -f k8s/hermes.yaml
+          kubectl -n wslc create secret generic hermes-secrets \
+            --from-literal=N8N_ENCRYPTION_KEY="${{ secrets.N8N_ENCRYPTION_KEY }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n wslc set image deployment/hermes hermes=ghcr.io/robsonrbranco/hermes:${{ github.sha }}
+          kubectl -n wslc rollout status deployment/hermes --timeout=120s
+          rm kubeconfig.yaml
