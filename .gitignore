@@ -7,6 +7,12 @@
 *-bkp.ps1
 *.bak
 
+# Certificado digital A1 e documentos societarios - NUNCA commitar
+# (certificado-A1.pfx e uma chave privada de assinatura digital; CNPJ.pdf
+# e documento societario. Ambos ficam so localmente, montados/copiados no
+# build local, jamais no repositorio publico.)
+certs/
+
 # Cruft de SO
 .DS_Store
 Thumbs.db
